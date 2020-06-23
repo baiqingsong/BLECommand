@@ -14,3 +14,17 @@
     5. printDeviceState   打印相关状态的回调，包括连接成功，断开连接，发送成功，接收成功等信息
  * BleSppGattAttributes  ble参数管理类
   主要有service，notify_characteristic,write_characteristics,descriptor等参数
+  
+  
+  * 依赖生成
+    1. module的build.gradle中添加
+    ```
+      apply plugin: 'com.github.dcendents.android-maven'
+      group = 'com.github.baiqingsong'
+    ```
+    2. 根目录的build.gradle中添加
+    ```
+        dependencies {
+          classpath 'com.github.dcendents:android-maven-gradle-plugin:2.1'
+        }
+    ```
