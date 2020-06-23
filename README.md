@@ -1,5 +1,5 @@
 # BLECommand
- *BLEManage ble管理类
+ * BLEManage ble管理类
   1.initBLE ble的初始化，返回是否初始化成功，如果未初始化成功，则需要授权
   2.startSearchBLE  开始搜索ble设备，默认10秒后停止搜索，返回设备需要去重去空等操作
   3.stopSearchBLE  停止搜索ble设备
