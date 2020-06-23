@@ -6,6 +6,7 @@
   4. connectBLE  连接ble设备
   5. writeData  发送内容
   6. OnBLEListener  ble设备的回调函数
+  
     1. deviceFind   设备获取，需要去空和去重的操作
     2. deviceState  设备状态，设备连接成功和设备断开连接的回调
     3. deviceConnectError  设备连接过程失败，其中包括service，characteristic，descriptor等获取失败
