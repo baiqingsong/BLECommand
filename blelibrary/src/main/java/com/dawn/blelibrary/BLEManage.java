@@ -12,6 +12,7 @@ import android.content.Context;
 import android.os.Handler;
 import android.os.Message;
 
+import java.util.List;
 import java.util.UUID;
 
 public class BLEManage {
@@ -21,7 +22,11 @@ public class BLEManage {
     private BluetoothGattCharacteristic mNotifyCharacteristic;
     private BluetoothGattCharacteristic mWriteCharacteristic;
     private BluetoothGatt mBluetoothGatt;
-    public final static UUID UUID_BLE_SPP_NOTIFY = UUID.fromString(BleSppGattAttributes.BLE_SPP_Notify_Characteristic);
+    private TypeTransport typeReceiver = TypeTransport.hex;//接收类型
+    private TypeTransport typeSend = TypeTransport.hex;//发送类型
+    public enum TypeTransport{
+        hex, ascii
+    }
     private final static int h_ble_connect = 0x101;
     private final static int d_ble_connect = 100;//先停止搜索，再连接
     private final static int h_ble_disconnect = 0x102;
@@ -56,6 +61,22 @@ public class BLEManage {
                 mListener.deviceFind(device);
         }
     };
+
+    /**
+     * 设置返回类型
+     * @param receiverType 返回类型
+     */
+    public void setReceiverType(TypeTransport receiverType){
+        this.typeReceiver = receiverType;
+    }
+
+    /**
+     * 设置发送类型
+     * @param sendType 发送类型
+     */
+    public void setSendType(TypeTransport sendType){
+        this.typeSend = sendType;
+    }
 
     /**
      * ble的初始化
@@ -125,18 +146,39 @@ public class BLEManage {
                     if(mListener != null)
                         mListener.printDeviceState("on services discovered");
                     // 默认先使用 B-0006/TL8266 服务发现
-                    BluetoothGattService service = gatt.getService(UUID.fromString(BleSppGattAttributes.BLE_SPP_Service));
-                    if (service!=null)
-                    {
+                    List<BluetoothGattService> services = gatt.getServices();
+                    UUID serviceUuid = null;
+                    BluetoothGattService service = null;
+                    for(int i = 0; i < services.size(); i ++){
+                        String serviceUuidStr = services.get(i).getUuid().toString();
+                        if(serviceUuidStr.contains("fee0") || serviceUuidStr.contains("FEE0")){
+                            serviceUuid = services.get(i).getUuid();
+                            break;
+                        }
+                    }
+                    if(serviceUuid != null){
+                        service = gatt.getService(serviceUuid);
+                    }
+                    if (service!=null){
                         //找到服务，继续查找特征值
-                        mNotifyCharacteristic = service.getCharacteristic(UUID.fromString(BleSppGattAttributes.BLE_SPP_Notify_Characteristic));
-                        mWriteCharacteristic = service.getCharacteristic(UUID.fromString(BleSppGattAttributes.BLE_SPP_Write_Characteristic));
-
-                        if (mNotifyCharacteristic!=null)//使能Notify
-                            setCharacteristicNotification(mNotifyCharacteristic,true);
-
-                        if(mWriteCharacteristic==null) //适配没有FEE2的B-0002/04
-                            mWriteCharacteristic  = service.getCharacteristic(UUID.fromString(BleSppGattAttributes.BLE_SPP_Notify_Characteristic));
+                        UUID characteristicUuid = null;
+                        List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
+                        for(int i = 0;i < characteristics.size(); i ++){
+                            String characteristicsUuidStr = characteristics.get(i).getUuid().toString();
+                            if(characteristicsUuidStr.contains("fee1") || characteristicsUuidStr.contains("FEE1")){
+                                characteristicUuid = characteristics.get(i).getUuid();
+                                break;
+                            }
+                        }
+                        if(characteristicUuid != null){
+                            mNotifyCharacteristic = service.getCharacteristic(characteristicUuid);
+                            mWriteCharacteristic = service.getCharacteristic(characteristicUuid);
+                            if(mNotifyCharacteristic != null)
+                                setCharacteristicNotification(mNotifyCharacteristic, true);
+                        }else{
+                            if(mListener != null)
+                                mListener.deviceConnectError("没有获取到对应的特征值");
+                        }
                     }else{
                         if(mListener != null)
                             mListener.deviceConnectError("没有获取到对应服务信息");
@@ -161,7 +203,14 @@ public class BLEManage {
 
                 byte[] bytes = characteristic.getValue();
                 if(mListener != null){
-                    mListener.getDeviceContent(new String(bytes));
+                    switch (typeReceiver){
+                        case hex:
+                            mListener.getDeviceContent(BLEUtil.toHexString(bytes));
+                            break;
+                        case ascii:
+                            mListener.getDeviceContent(new String(bytes));
+                            break;
+                    }
                     mListener.printDeviceState("on characteristics changed");
                 }
             }
@@ -181,28 +230,41 @@ public class BLEManage {
             return;
         }
         mBluetoothGatt.setCharacteristicNotification(characteristic, enabled);
-        // This is specific to BLE SPP Notify.
-        if (UUID_BLE_SPP_NOTIFY.equals(characteristic.getUuid())) {
-            BluetoothGattDescriptor descriptor = characteristic.getDescriptor(
-                    UUID.fromString(BleSppGattAttributes.CLIENT_CHARACTERISTIC_CONFIG));
-            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-            mBluetoothGatt.writeDescriptor(descriptor);
-        }
+        BluetoothGattDescriptor descriptor = characteristic.getDescriptor(
+                UUID.fromString(BleSppGattAttributes.CLIENT_CHARACTERISTIC_CONFIG));
+        descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+        mBluetoothGatt.writeDescriptor(descriptor);
     }
 
     /**
      * 发送消息
      * @param dataStr 发送的内容
      */
-    public void writeData(String dataStr) {
+    public void writeData(String dataStr, TypeTransport typeSend) {
         if(dataStr == null || dataStr.trim().length() == 0)
             return;
-        byte[] data = dataStr.getBytes();
-        if ( mWriteCharacteristic != null && data != null) {
+        byte[] data = null;
+        switch (typeSend){
+            case ascii:
+                data = dataStr.getBytes();
+                break;
+            case hex:
+                data = BLEUtil.toByteArray(dataStr);
+                break;
+        }
+        if ( mWriteCharacteristic != null) {
             mWriteCharacteristic.setValue(data);
             mBluetoothGatt.writeCharacteristic(mWriteCharacteristic);
         }
 
+    }
+
+    /**
+     * 发送信息
+     * @param dataStr 发送的内容
+     */
+    public void writeData(String dataStr){
+        this.writeData(dataStr, typeSend);
     }
 
     /**

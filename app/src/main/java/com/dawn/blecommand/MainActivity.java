@@ -71,7 +71,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.tv_temperature).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                bleManage.writeData("|T|0|");
+                bleManage.writeData("AA3000BB");
             }
         });
     }
