@@ -1,4 +1,8 @@
 # BLECommand
+ * BLECommand导入
+ ```
+  implementation 'com.github.baiqingsong:BLECommand:Tag'
+ ```
  * BLEManage ble管理类
   1. initBLE ble的初始化，返回是否初始化成功，如果未初始化成功，则需要授权
   2. startSearchBLE  开始搜索ble设备，默认10秒后停止搜索，返回设备需要去重去空等操作
@@ -16,7 +20,7 @@
   主要有service，notify_characteristic,write_characteristics,descriptor等参数
   
   
-  * 依赖生成
+  # 依赖生成
     1. module的build.gradle中添加
     ```
       apply plugin: 'com.github.dcendents.android-maven'
