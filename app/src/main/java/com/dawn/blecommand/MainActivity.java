@@ -68,12 +68,21 @@ public class MainActivity extends AppCompatActivity {
                     BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBtIntent, 1);
         }
-        findViewById(R.id.tv_temperature).setOnClickListener(new View.OnClickListener() {
+        findViewById(R.id.tv_test).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 bleManage.writeData("AA3000BB");
             }
         });
+        bleManage.setHeadEndStr("AA", "BB");
+//        findViewById(R.id.tv_test).setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                bleManage.writeData("|T|0|");
+//            }
+//        });
+//        bleManage.setSendType(BLEManage.TypeTransport.ascii);
+//        bleManage.setReceiverType(BLEManage.TypeTransport.ascii);
     }
     /**
      * 添加设备到列表中
@@ -94,5 +103,11 @@ public class MainActivity extends AppCompatActivity {
                 mAdapter.refreshData(devices);
             }
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        bleManage.stopSearchBluetooth();
     }
 }

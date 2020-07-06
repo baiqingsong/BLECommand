@@ -27,10 +27,15 @@ public class BLEManage {
     public enum TypeTransport{
         hex, ascii
     }
+    private String receiverStr = "";
+    private String headStr;//接收字符串的头信息
+    private String endStr;//接收字符串的尾信息
     private final static int h_ble_connect = 0x101;
     private final static int d_ble_connect = 100;//先停止搜索，再连接
     private final static int h_ble_disconnect = 0x102;
     private final static int d_ble_disconnect = 10 * 1000;//搜索10秒后自动停止
+    private final static int h_join_str = 0x103;//字符串拼接
+    private final static int d_join_str = 50;//对50毫秒内的字符串进行拼接
     private Handler mHandler = new Handler(){
         @Override
         public void handleMessage(Message msg) {
@@ -42,6 +47,13 @@ public class BLEManage {
                     break;
                 case h_ble_disconnect:
                     stopSearchBluetooth();
+                    break;
+                case h_join_str:
+                    if(receiverStr.length() > 0){
+                        if(mListener != null)
+                            mListener.getDeviceContent(receiverStr);
+                        receiverStr = "";
+                    }
                     break;
             }
         }
@@ -76,6 +88,16 @@ public class BLEManage {
      */
     public void setSendType(TypeTransport sendType){
         this.typeSend = sendType;
+    }
+
+    /**
+     * 设置接收字符串的头尾数据
+     * @param headStr 头字符串
+     * @param endStr 尾字符串
+     */
+    public void setHeadEndStr(String headStr, String endStr){
+        this.headStr = headStr;
+        this.endStr = endStr;
     }
 
     /**
@@ -115,7 +137,7 @@ public class BLEManage {
         Message msg = new Message();
         msg.what = h_ble_connect;
         msg.obj = device;
-        mHandler.sendMessageDelayed(msg, h_ble_connect);
+        mHandler.sendMessageDelayed(msg, d_ble_connect);
     }
 
     /**
@@ -174,7 +196,7 @@ public class BLEManage {
                             mNotifyCharacteristic = service.getCharacteristic(characteristicUuid);
                             mWriteCharacteristic = service.getCharacteristic(characteristicUuid);
                             if(mNotifyCharacteristic != null)
-                                setCharacteristicNotification(mNotifyCharacteristic, true);
+                                setCharacteristicNotification(mNotifyCharacteristic);
                         }else{
                             if(mListener != null)
                                 mListener.deviceConnectError("没有获取到对应的特征值");
@@ -202,17 +224,17 @@ public class BLEManage {
             public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
 
                 byte[] bytes = characteristic.getValue();
-                if(mListener != null){
-                    switch (typeReceiver){
-                        case hex:
-                            mListener.getDeviceContent(BLEUtil.toHexString(bytes));
-                            break;
-                        case ascii:
-                            mListener.getDeviceContent(new String(bytes));
-                            break;
-                    }
-                    mListener.printDeviceState("on characteristics changed");
+                String receiverStr = null;
+                switch (typeReceiver){
+                    case hex:
+                        receiverStr = BLEUtil.toHexString(bytes);
+                        break;
+                    case ascii:
+                        receiverStr = new String(bytes);
+                        break;
                 }
+                operateReceiverStr(receiverStr);
+                mListener.printDeviceState("on characteristics changed");
             }
         });
     }
@@ -220,20 +242,59 @@ public class BLEManage {
      * Enables or disables notification on a give characteristic.
      *
      * @param characteristic Characteristic to act on.
-     * @param enabled If true, enable notification.  False otherwise.
      */
-    private void setCharacteristicNotification(BluetoothGattCharacteristic characteristic,
-                                              boolean enabled) {
+    private void setCharacteristicNotification(BluetoothGattCharacteristic characteristic) {
         if (mBluetoothAdapter == null || mBluetoothGatt == null) {
             if(mListener != null)
                 mListener.deviceConnectError("BluetoothAdapter not initialized");
             return;
         }
-        mBluetoothGatt.setCharacteristicNotification(characteristic, enabled);
+        mBluetoothGatt.setCharacteristicNotification(characteristic, true);
         BluetoothGattDescriptor descriptor = characteristic.getDescriptor(
                 UUID.fromString(BleSppGattAttributes.CLIENT_CHARACTERISTIC_CONFIG));
         descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
         mBluetoothGatt.writeDescriptor(descriptor);
+    }
+
+    /**
+     * 处理接收字符串
+     * 只处理从几条数据中获取需要接收字符串，不处理两条接收字符串连接到一起的情况
+     * @param receiverStr 接收的字符串
+     */
+    private void operateReceiverStr(String receiverStr){
+        if(headStr == null || endStr == null){
+            mHandler.removeMessages(h_join_str);
+            this.receiverStr += receiverStr;
+            mHandler.sendEmptyMessageDelayed(h_join_str, d_join_str);
+        }else{
+            if(this.receiverStr.length() == 0){//需要获取头字符串
+                int headIndex = receiverStr.indexOf(headStr);
+                int endIndex = receiverStr.indexOf(endStr);
+                if(headIndex != -1){
+                    if(endIndex != -1){//当前获取的字符串里面有头和尾
+                        this.receiverStr = receiverStr.substring(headIndex, endIndex) + endStr;
+                        if(mListener != null)
+                            mListener.getDeviceContent(this.receiverStr);
+                        this.receiverStr = "";
+                    }else{//接收的字符串中只有头没有尾
+                        this.receiverStr = receiverStr.substring(headIndex);
+                    }
+                }
+                //没有接收到头字符串，不处理
+            }else{//之前的字符串中接收到了头没有接收到尾，需要拼接
+                int endIndex = receiverStr.indexOf(endStr);
+                if(endIndex != -1){//接收到尾字符串
+                    this.receiverStr = this.receiverStr + receiverStr.substring(0, endIndex) + endStr;
+                    if(mListener != null)
+                        mListener.getDeviceContent(this.receiverStr);
+                    this.receiverStr = "";
+                }else{
+                    this.receiverStr += receiverStr;//没有收到尾字符串，继续拼接
+                    if(this.receiverStr.length() > 256)//长度过长，则初始化字符串
+                        this.receiverStr = "";
+                }
+            }
+        }
     }
 
     /**
