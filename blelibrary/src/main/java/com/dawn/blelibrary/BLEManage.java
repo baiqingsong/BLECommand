@@ -301,6 +301,9 @@ public class BLEManage {
                         if(mListener != null)
                             mListener.getDeviceContent(this.receiverStr);
                         this.receiverStr = "";
+                        if((endIndex + endStr.length()) != receiverStr.length()){//字符串后面还有数据
+                            operateReceiverStr(receiverStr.substring(endIndex + endStr.length()));
+                        }
                     }else{//接收的字符串中只有头没有尾
                         this.receiverStr = receiverStr.substring(headIndex);
                     }
@@ -313,6 +316,9 @@ public class BLEManage {
                     if(mListener != null)
                         mListener.getDeviceContent(this.receiverStr);
                     this.receiverStr = "";
+                    if((endIndex + endStr.length()) != receiverStr.length()){//字符串后面还有数据
+                        operateReceiverStr(receiverStr.substring(endIndex + endStr.length()));
+                    }
                 }else{
                     this.receiverStr += receiverStr;//没有收到尾字符串，继续拼接
                     if(this.receiverStr.length() > 256)//长度过长，则初始化字符串
