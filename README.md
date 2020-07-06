@@ -1,7 +1,7 @@
 # BLECommand
  * BLECommand导入
  ```
-  implementation 'com.github.baiqingsong:BLECommand:Tag'
+  implementation 'com.github.baiqingsong:BLECommand:1.0.5'
  ```
  * BLEManage ble管理类
   1. initBLE ble的初始化，返回是否初始化成功，如果未初始化成功，则需要授权
