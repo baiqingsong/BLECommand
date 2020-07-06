@@ -141,10 +141,22 @@ public class BLEManage {
     }
 
     /**
+     * ble关闭连接
+     */
+    public void disconnectBLE(){
+        if(mBluetoothGatt != null){
+            mBluetoothGatt.disconnect();
+            if(mListener != null)
+                mListener.printDeviceState("disconnect ble");
+        }
+    }
+
+    /**
      * 设备连接
      * @param device 要连接的设备
      */
     private void connectGatt(BluetoothDevice device){
+        disconnectBLE();
         mBluetoothGatt = device.connectGatt(mContext, false, new BluetoothGattCallback() {
             @Override
             public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
