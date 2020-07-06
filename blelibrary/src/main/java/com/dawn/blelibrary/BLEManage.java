@@ -32,10 +32,10 @@ public class BLEManage {
     private String endStr;//接收字符串的尾信息
     private final static int h_ble_connect = 0x101;
     private final static int d_ble_connect = 100;//先停止搜索，再连接
-    private final static int h_ble_disconnect = 0x102;
-    private final static int d_ble_disconnect = 10 * 1000;//搜索10秒后自动停止
+    private final static int h_ble_stop_search = 0x102;
+    private final static int d_ble_stop_search = 10 * 1000;//搜索10秒后自动停止
     private final static int h_join_str = 0x103;//字符串拼接
-    private final static int d_join_str = 50;//对50毫秒内的字符串进行拼接
+    private final static int d_join_str = 50;
     private Handler mHandler = new Handler(){
         @Override
         public void handleMessage(Message msg) {
@@ -45,7 +45,7 @@ public class BLEManage {
                     BluetoothDevice device = (BluetoothDevice) msg.obj;
                     connectGatt(device);
                     break;
-                case h_ble_disconnect:
+                case h_ble_stop_search:
                     stopSearchBluetooth();
                     break;
                 case h_join_str:
@@ -58,10 +58,20 @@ public class BLEManage {
             }
         }
     };
-    public BLEManage(Context context, OnBLEListener listener){
+    private static BLEManage bleManage;
+    private BLEManage(Context context){
         this.mContext = context;
+    }
+    public static BLEManage singleInstance(Context context){
+        if(bleManage == null)
+            bleManage = new BLEManage(context);
+        return bleManage;
+    }
+
+    public void setListener(OnBLEListener listener){
         this.mListener = listener;
     }
+
     /**
      * 搜索蓝牙的回调
      */
@@ -116,7 +126,7 @@ public class BLEManage {
      * 搜索设备
      */
     public void startSearchBLE(){
-        mHandler.sendEmptyMessageDelayed(h_ble_disconnect, d_ble_disconnect);//默认10秒后停止搜索
+        mHandler.sendEmptyMessageDelayed(h_ble_stop_search, d_ble_stop_search);//默认10秒后停止搜索
         if(mBluetoothAdapter != null)
             mBluetoothAdapter.startLeScan(callback);
     }
@@ -131,13 +141,16 @@ public class BLEManage {
      * 设备连接，对外开放，先停止搜索功能，再进行设备连接
      * @param device 需要连接的设备
      */
-    public void connectBLE(BluetoothDevice device){
+    public synchronized boolean connectBLE(BluetoothDevice device){
         if(device == null)
-            return;
+            return false;
+        stopSearchBluetooth();
+        mHandler.removeMessages(h_ble_connect);
         Message msg = new Message();
         msg.what = h_ble_connect;
         msg.obj = device;
         mHandler.sendMessageDelayed(msg, d_ble_connect);
+        return true;
     }
 
     /**
@@ -145,7 +158,7 @@ public class BLEManage {
      */
     public void disconnectBLE(){
         if(mBluetoothGatt != null){
-            mBluetoothGatt.disconnect();
+            mBluetoothGatt.close();
             if(mListener != null)
                 mListener.printDeviceState("disconnect ble");
         }
@@ -324,6 +337,11 @@ public class BLEManage {
             case hex:
                 data = BLEUtil.toByteArray(dataStr);
                 break;
+        }
+        if(mBluetoothGatt == null){
+            if(mListener != null)
+                mListener.printDeviceState("bluetooth gatt is null");
+            return;
         }
         if ( mWriteCharacteristic != null) {
             mWriteCharacteristic.setValue(data);

@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
-    private BLEManage bleManage;
+
     private ListView listView;
     private CommonBluetoothAdapter mAdapter;
     private List<BluetoothDevice> devices = new ArrayList<>();
@@ -28,11 +28,13 @@ public class MainActivity extends AppCompatActivity {
         mAdapter = new CommonBluetoothAdapter(this, devices, new CommonBluetoothAdapter.CallBackListener() {
             @Override
             public void clickItem(BluetoothDevice device) {
-                bleManage.connectBLE(device);
+                boolean connect = BLEManage.singleInstance(MainActivity.this).connectBLE(device);
+                if(connect)
+                    jumpToConnect();
             }
         });
         listView.setAdapter(mAdapter);
-        bleManage = new BLEManage(this, new BLEManage.OnBLEListener() {
+        BLEManage.singleInstance(this).setListener(new BLEManage.OnBLEListener() {
             @Override
             public void deviceFind(BluetoothDevice device) {
                 if(device.getName() != null && device.getName().trim().length() > 0 ){
@@ -60,29 +62,14 @@ public class MainActivity extends AppCompatActivity {
                 Log.i("dawn", "print device state : " + stateMsg);
             }
         });
-        boolean getBleState = bleManage.initBLE();
+        boolean getBleState = BLEManage.singleInstance(this).initBLE();
         if(getBleState){
-            bleManage.startSearchBLE();
+            BLEManage.singleInstance(this).startSearchBLE();
         }else{
             Intent enableBtIntent = new Intent(
                     BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBtIntent, 1);
         }
-        findViewById(R.id.tv_test).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                bleManage.writeData("AA3000BB");
-            }
-        });
-        bleManage.setHeadEndStr("AA", "BB");
-//        findViewById(R.id.tv_test).setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View v) {
-//                bleManage.writeData("|T|0|");
-//            }
-//        });
-//        bleManage.setSendType(BLEManage.TypeTransport.ascii);
-//        bleManage.setReceiverType(BLEManage.TypeTransport.ascii);
     }
     /**
      * 添加设备到列表中
@@ -105,9 +92,8 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        bleManage.disconnectBLE();
+    private void jumpToConnect(){
+        startActivity(new Intent(this, ConnectActivity.class));
     }
+
 }
