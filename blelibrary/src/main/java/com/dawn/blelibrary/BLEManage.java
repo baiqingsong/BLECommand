@@ -294,7 +294,7 @@ public class BLEManage {
         }else{
             if(this.receiverStr.length() == 0){//需要获取头字符串
                 int headIndex = receiverStr.indexOf(headStr);
-                int endIndex = receiverStr.indexOf(endStr);
+                int endIndex = receiverStr.lastIndexOf(endStr);
                 if(headIndex != -1){
                     if(endIndex != -1){//当前获取的字符串里面有头和尾
                         this.receiverStr = receiverStr.substring(headIndex, endIndex) + endStr;
@@ -310,7 +310,7 @@ public class BLEManage {
                 }
                 //没有接收到头字符串，不处理
             }else{//之前的字符串中接收到了头没有接收到尾，需要拼接
-                int endIndex = receiverStr.indexOf(endStr);
+                int endIndex = receiverStr.lastIndexOf(endStr);
                 if(endIndex != -1){//接收到尾字符串
                     this.receiverStr = this.receiverStr + receiverStr.substring(0, endIndex) + endStr;
                     if(mListener != null)
