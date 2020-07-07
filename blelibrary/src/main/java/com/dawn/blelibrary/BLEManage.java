@@ -35,7 +35,7 @@ public class BLEManage {
     private final static int h_ble_stop_search = 0x102;
     private final static int d_ble_stop_search = 10 * 1000;//搜索10秒后自动停止
     private final static int h_join_str = 0x103;//字符串拼接
-    private final static int d_join_str = 50;
+    private final static int d_join_str = 10;
     private Handler mHandler = new Handler(){
         @Override
         public void handleMessage(Message msg) {
