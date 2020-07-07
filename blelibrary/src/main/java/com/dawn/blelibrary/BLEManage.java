@@ -259,7 +259,7 @@ public class BLEManage {
                         break;
                 }
                 operateReceiverStr(receiverStr);
-                mListener.printDeviceState("on characteristics changed");
+                mListener.printDeviceState("on characteristics changed " + receiverStr);
             }
         });
     }
