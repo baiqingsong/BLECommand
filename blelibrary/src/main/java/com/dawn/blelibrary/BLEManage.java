@@ -35,7 +35,7 @@ public class BLEManage {
     private final static int h_ble_stop_search = 0x102;
     private final static int d_ble_stop_search = 10 * 1000;//搜索10秒后自动停止
     private final static int h_join_str = 0x103;//字符串拼接
-    private final static int d_join_str = 10;
+    private final static int d_join_str = 20;
     private Handler mHandler = new Handler(){
         @Override
         public void handleMessage(Message msg) {
@@ -50,9 +50,7 @@ public class BLEManage {
                     break;
                 case h_join_str:
                     if(receiverStr.length() > 0){
-                        if(mListener != null)
-                            mListener.getDeviceContent(receiverStr);
-                        receiverStr = "";
+                        operateReceiverStr();
                     }
                     break;
             }
@@ -258,7 +256,7 @@ public class BLEManage {
                         receiverStr = new String(bytes);
                         break;
                 }
-                operateReceiverStr(receiverStr);
+                getReceiverStr(receiverStr);
                 mListener.printDeviceState("on characteristics changed " + receiverStr);
             }
         });
@@ -282,49 +280,47 @@ public class BLEManage {
     }
 
     /**
-     * 处理接收字符串
-     * 只处理从几条数据中获取需要接收字符串，不处理两条接收字符串连接到一起的情况
+     * 获取到接收字符串
      * @param receiverStr 接收的字符串
      */
-    private void operateReceiverStr(String receiverStr){
-        if(headStr == null || endStr == null){
-            mHandler.removeMessages(h_join_str);
-            this.receiverStr += receiverStr;
-            mHandler.sendEmptyMessageDelayed(h_join_str, d_join_str);
+    private void getReceiverStr(String receiverStr){
+        mHandler.removeMessages(h_join_str);
+        this.receiverStr += receiverStr;
+        mHandler.sendEmptyMessageDelayed(h_join_str, d_join_str);
+    }
+    /**
+     * 处理接收字符串
+     * 时间间隔接收数据，然后处理
+     */
+    private void operateReceiverStr(){
+        if(headStr == null && endStr == null){
+            if(mListener != null)
+                mListener.getDeviceContent(receiverStr);
+            receiverStr = "";
         }else{
-            if(this.receiverStr.length() == 0){//需要获取头字符串
-                int headIndex = receiverStr.indexOf(headStr);
-                int endIndex = receiverStr.lastIndexOf(endStr);
-                if(headIndex != -1){
-                    if(endIndex != -1){//当前获取的字符串里面有头和尾
-                        this.receiverStr = receiverStr.substring(headIndex, endIndex) + endStr;
-                        if(mListener != null)
-                            mListener.getDeviceContent(this.receiverStr);
-                        this.receiverStr = "";
-                        if((endIndex + endStr.length()) != receiverStr.length()){//字符串后面还有数据
-                            operateReceiverStr(receiverStr.substring(endIndex + endStr.length()));
-                        }
-                    }else{//接收的字符串中只有头没有尾
-                        this.receiverStr = receiverStr.substring(headIndex);
-                    }
-                }
-                //没有接收到头字符串，不处理
-            }else{//之前的字符串中接收到了头没有接收到尾，需要拼接
-                int endIndex = receiverStr.lastIndexOf(endStr);
-                if(endIndex != -1){//接收到尾字符串
-                    this.receiverStr = this.receiverStr + receiverStr.substring(0, endIndex) + endStr;
-                    if(mListener != null)
-                        mListener.getDeviceContent(this.receiverStr);
-                    this.receiverStr = "";
-                    if((endIndex + endStr.length()) != receiverStr.length()){//字符串后面还有数据
-                        operateReceiverStr(receiverStr.substring(endIndex + endStr.length()));
-                    }
-                }else{
-                    this.receiverStr += receiverStr;//没有收到尾字符串，继续拼接
-                    if(this.receiverStr.length() > 256)//长度过长，则初始化字符串
-                        this.receiverStr = "";
-                }
+            if(headStr == null){
+                if(mListener != null)
+                    mListener.getDeviceContent(receiverStr);
+                receiverStr = "";
+                return;
             }
+            int headIndex = receiverStr.indexOf(headStr);
+            if(headIndex != -1){
+                if(endStr == null){
+                    if(mListener != null)
+                        mListener.getDeviceContent(receiverStr.substring(headIndex));
+                    receiverStr = "";
+                }else{
+                    int endIndex = receiverStr.lastIndexOf(endStr);
+                    if(endIndex != -1){//当前字符串有结尾
+                        if(mListener != null)
+                            mListener.getDeviceContent(receiverStr.substring(headIndex, endIndex) + endStr);
+                        receiverStr = receiverStr.substring(endIndex + endStr.length());
+                    }
+                }
+
+            }
+
         }
     }
 
