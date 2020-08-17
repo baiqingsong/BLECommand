@@ -312,7 +312,7 @@ public class BLEManage {
                     receiverStr = "";
                 }else{
                     int endIndex = receiverStr.lastIndexOf(endStr);
-                    if(endIndex != -1){//当前字符串有结尾
+                    if(endIndex != -1 && headIndex < endIndex){//当前字符串有结尾
                         if(mListener != null)
                             mListener.getDeviceContent(receiverStr.substring(headIndex, endIndex) + endStr);
                         receiverStr = receiverStr.substring(endIndex + endStr.length());
